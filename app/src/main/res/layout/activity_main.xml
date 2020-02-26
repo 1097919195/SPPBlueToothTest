@@ -10,11 +10,7 @@
         android:id="@+id/state"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="状态显示"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="状态显示" />
 
     <TextView
         android:id="@+id/text"
@@ -22,10 +18,27 @@
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
         android:gravity="center"
-        android:text="请先连接蓝牙!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="请先连接蓝牙!" />
+
+    <TextView
+        android:id="@+id/maxTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/infoCountdown"
+        android:text="当前连接成功的最大耗时" />
+
+    <TextView
+        android:id="@+id/infoCountdown"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/infoError"
+        android:text="倒计时间显示" />
+
+    <TextView
+        android:id="@+id/infoError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:text="测试失败信息记录" />
 
 </RelativeLayout>

@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.util.Log;
 import android.widget.TextView;
@@ -30,14 +31,17 @@ public class BlueActivity extends AppCompatActivity {
     BluetoothAdapter mBluetoothAdapter = null;
     BluetoothSPP bt = null;
     String bindMac = "";
-    String tipText = "";
     private Object readLockObject = new Object();
     private Object sendLockObject = new Object();
     boolean stopAuto;//退出后连接断开的标志
     boolean stopRealInfoGet;//连接时暂停数据获取
-    TextView text, state;
+    TextView text, state, infoCountdown, infoError, maxTime;
     boolean print_mode = false;
     Handler handler = new Handler();
+    int countdown = 0;
+    int nFail = 1;
+    int maxConsume = 1;
+    int allTime = 10;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -46,6 +50,9 @@ public class BlueActivity extends AppCompatActivity {
 
         text = findViewById(R.id.text);
         state = findViewById(R.id.state);
+        infoCountdown = findViewById(R.id.infoCountdown);
+        infoError = findViewById(R.id.infoError);
+        maxTime = findViewById(R.id.maxTime);
         myApplication = (MyApplication) getApplication();
         InitScannerCanNFC();
 
@@ -89,16 +96,19 @@ public class BlueActivity extends AppCompatActivity {
                 if (!bindMac.equals("")) {
                     state.setText("扫描成功，通讯发起中...");
                     stopRealInfoGet = true;
-                    if (bt.getServiceState() == BluetoothState.STATE_CONNECTED){
+                    if (bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
                         bt.disconnect();
                     }
                     handler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
-                            if (bt.getServiceState() == BluetoothState.STATE_CONNECTED){
+                            if (bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
                                 ToastUtil.showLong("请等待连接断开后再试...");
-                            }else {
+                            } else {
                                 bt.connect(bindMac);
+                                if (countDownTimer != null) {
+                                    countDownTimer.start();
+                                }
                             }
                         }
                     }, 1000);
@@ -185,7 +195,7 @@ public class BlueActivity extends AppCompatActivity {
             public void onDataReceived(byte[] data, String message) {
                 synchronized (readLockObject) {
                     Log.e("LoginAct", "onDataReceived" + SerializeUtil.byteArrayToHexString(data));
-                    if (!stopRealInfoGet){
+                    if (!stopRealInfoGet) {
                         state.setText("收集信息:\n" + SerializeUtil.byteArrayToHexString(data));
                     }
 //                    lister.onBlueReadTimeCode(data);//蓝牙连接后的实时信息发送
@@ -214,7 +224,16 @@ public class BlueActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onDeviceConnected(String name, String address) {
+            public void
+            onDeviceConnected(String name, String address) {
+                //连接成功后记录最大的消耗时间
+                if (maxConsume < allTime - countdown) {
+                    maxConsume = allTime - countdown;
+                }
+
+                if (countDownTimer != null) {
+                    countDownTimer.cancel();
+                }
                 stopRealInfoGet = false;
                 state.setText("连接成功，重量计算中...");
                 startTimer();
@@ -271,8 +290,29 @@ public class BlueActivity extends AppCompatActivity {
         super.onDestroy();
         unregisterReceiver(mCanNFCReceiver);
         stopTimer();
+        if (countDownTimer != null) {
+            countDownTimer.cancel();
+        }
         stopAuto = true;
         bt.stopService();
         bt.disconnect();
     }
+
+
+    private CountDownTimer countDownTimer = new CountDownTimer(allTime * 1000, 1000) {
+        @Override
+        public void onTick(long millisUntilFinished) {
+            countdown = (int) (millisUntilFinished / 1000);
+            infoCountdown.setText("当前倒计时间:" + countdown);
+            maxTime.setText("当前连接成功后的最大耗时:" + maxConsume);
+        }
+
+        @Override
+        public void onFinish() {
+            infoError.setText("失败次数:" + nFail++);
+            if (countDownTimer != null) {
+                countDownTimer.cancel();
+            }
+        }
+    };
 }
