@@ -21,6 +21,13 @@
         android:text="请先连接蓝牙!" />
 
     <TextView
+        android:id="@+id/successTotal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/maxTime"
+        android:text="各时间段内连接耗时" />
+
+    <TextView
         android:id="@+id/maxTime"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

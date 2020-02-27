@@ -20,6 +20,8 @@ import com.example.sppbluetoothtest.library.BluetoothState;
 import com.example.sppbluetoothtest.util.SerializeUtil;
 import com.example.sppbluetoothtest.util.ToastUtil;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -35,13 +37,20 @@ public class BlueActivity extends AppCompatActivity {
     private Object sendLockObject = new Object();
     boolean stopAuto;//退出后连接断开的标志
     boolean stopRealInfoGet;//连接时暂停数据获取
-    TextView text, state, infoCountdown, infoError, maxTime;
+    TextView text, state, infoCountdown, infoError, maxTime, successTotal;
     boolean print_mode = false;
     Handler handler = new Handler();
-    int countdown = 0;
     int nFail = 1;
     int maxConsume = 1;
     int allTime = 10;
+    int countdown = allTime;
+    List<String> macList = new ArrayList<>();
+    int index = 0;
+    int successWith1 = 0;
+    int successWith2 = 0;
+    int successWith2_4 = 0;
+    int successWith4_6 = 0;
+    int successWith6_10 = 0;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -53,7 +62,9 @@ public class BlueActivity extends AppCompatActivity {
         infoCountdown = findViewById(R.id.infoCountdown);
         infoError = findViewById(R.id.infoError);
         maxTime = findViewById(R.id.maxTime);
+        successTotal = findViewById(R.id.successTotal);
         myApplication = (MyApplication) getApplication();
+        InitScannerNewLoad();
         InitScannerCanNFC();
 
         //判断蓝牙是否可用
@@ -70,6 +81,8 @@ public class BlueActivity extends AppCompatActivity {
         myApplication.setBluetoothSPP(bt);
         InitBluetooth();
 
+        macList.add("20:19:08:20:17:57");
+        macList.add("20:19:08:20:29:87");
         if (!bt.isBluetoothEnabled()) {
             Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(intent, BluetoothState.REQUEST_ENABLE_BT);
@@ -82,6 +95,30 @@ public class BlueActivity extends AppCompatActivity {
 
     }
 
+    private void InitScannerNewLoad() {
+        IntentFilter filter = new IntentFilter("nlscan.action.SCANNER_RESULT");
+        registerReceiver(mNewLoadReceiver, filter);
+    }
+
+    private BroadcastReceiver mNewLoadReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String scanResult = intent.getStringExtra("SCAN_BARCODE1");
+            final String scanStatus = intent.getStringExtra("SCAN_STATE");
+            if ("ok".equals(scanStatus)) {
+                if (stringIsMac(scanResult)) {
+                    bindMac = scanResult;
+                    connectWithScan();
+                } else {
+                    ToastUtil.showShort("MAC地址格式不正确！！！");
+                }
+            } else {
+                ToastUtil.showShort("扫描失败了");
+            }
+
+        }
+    };
+
     private void InitScannerCanNFC() {
         IntentFilter filter = new IntentFilter("android.intent.ACTION_DECODE_DATA");
         registerReceiver(mCanNFCReceiver, filter);
@@ -93,26 +130,7 @@ public class BlueActivity extends AppCompatActivity {
             final String scanResult = intent.getStringExtra("barcode_string");
             if (stringIsMac(scanResult)) {
                 bindMac = scanResult;
-                if (!bindMac.equals("")) {
-                    state.setText("扫描成功，通讯发起中...");
-                    stopRealInfoGet = true;
-                    if (bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
-                        bt.disconnect();
-                    }
-                    handler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
-                                ToastUtil.showLong("请等待连接断开后再试...");
-                            } else {
-                                bt.connect(bindMac);
-                                if (countDownTimer != null) {
-                                    countDownTimer.start();
-                                }
-                            }
-                        }
-                    }, 1000);
-                }
+                connectWithScan();
             } else {
                 ToastUtil.showShort("MAC地址格式不正确！！！");
             }
@@ -120,10 +138,61 @@ public class BlueActivity extends AppCompatActivity {
         }
     };
 
+    private void connectWithScan() {
+        if (!bindMac.equals("")) {
+            state.setText("扫描成功，通讯发起中...");
+            stopRealInfoGet = true;
+            if (bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
+                bt.disconnect();
+            }
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
+                        ToastUtil.showLong("请等待连接断开后再试...");
+                    } else {
+                        bt.connect(bindMac);
+                        if (countDownTimer != null) {
+                            countdown = allTime;
+                            countDownTimer.start();
+                        }
+                    }
+                }
+            }, 1000);
+        }
+    }
+
+    Timer timer = null;
+    TimerTask timerTask = null;
     Timer sendrealtimemessagetimer = null;
     TimerTask sendrealtimemessagetimertimerTask = null;
 
     private void startTimer() {
+        if (timer == null) {
+            timer = new Timer();
+        }
+        if (timerTask == null) {
+            timerTask = new TimerTask() {
+                @Override
+                public void run() {
+//                    handler.post(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            if (index == 0) {
+//                                bindMac = macList.get(0);
+//                                index = 1;
+//                            } else {
+//                                bindMac = macList.get(1);
+//                                index = 0;
+//                            }
+//                            connectWithScan();
+//                        }
+//                    });
+                }
+            };
+            timer.schedule(timerTask, allTime * 1000, allTime * 1000);
+        }
+
         if (sendrealtimemessagetimer == null) {
             sendrealtimemessagetimer = new Timer();
         }
@@ -155,6 +224,15 @@ public class BlueActivity extends AppCompatActivity {
     }
 
     private void stopTimer() {
+        if (timer != null) {
+            timer.purge();
+            timer.cancel();
+            timer = null;
+        }
+        if (timerTask != null) {
+            timerTask.cancel();
+            timerTask = null;
+        }
         if (sendrealtimemessagetimer != null) {
             sendrealtimemessagetimer.purge();
             sendrealtimemessagetimer.cancel();
@@ -224,12 +302,29 @@ public class BlueActivity extends AppCompatActivity {
             }
 
             @Override
-            public void
-            onDeviceConnected(String name, String address) {
+            public void onDeviceConnected(String name, String address) {
                 //连接成功后记录最大的消耗时间
-                if (maxConsume < allTime - countdown) {
-                    maxConsume = allTime - countdown;
+                int thisConsume = allTime - countdown;
+                if (maxConsume < thisConsume) {
+                    maxConsume = thisConsume;
+                    maxTime.setText("当前连接成功后的最大耗时:" + maxConsume);
+                } else {
+                    maxTime.setText("当前连接成功后的最大耗时:" + maxConsume);
                 }
+
+                if (thisConsume <= 1) {
+                    successWith1 = successWith1 + 1;
+                } else if (thisConsume <= 2) {
+                    successWith2 = successWith2 + 1;
+                } else if (thisConsume <= 4) {
+                    successWith2_4 = successWith2_4 + 1;
+                } else if (thisConsume <= 6) {
+                    successWith4_6 = successWith4_6 + 1;
+                } else {
+                    successWith6_10 = successWith6_10 + 1;
+                }
+                successTotal.setText("1秒内成功的次数:" + successWith1 + "\n2秒内成功的次数:" + successWith2
+                        + "\n2-4秒内成功的次数:" + successWith2_4 + "\n4-6秒内成功的次数:" + successWith4_6 + "\n6-10秒内成功的次数:" + successWith6_10);
 
                 if (countDownTimer != null) {
                     countDownTimer.cancel();
@@ -288,6 +383,7 @@ public class BlueActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        unregisterReceiver(mNewLoadReceiver);
         unregisterReceiver(mCanNFCReceiver);
         stopTimer();
         if (countDownTimer != null) {
@@ -304,7 +400,6 @@ public class BlueActivity extends AppCompatActivity {
         public void onTick(long millisUntilFinished) {
             countdown = (int) (millisUntilFinished / 1000);
             infoCountdown.setText("当前倒计时间:" + countdown);
-            maxTime.setText("当前连接成功后的最大耗时:" + maxConsume);
         }
 
         @Override
