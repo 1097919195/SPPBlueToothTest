@@ -9,6 +9,8 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -17,6 +19,8 @@ import com.example.sppbluetoothtest.R;
 import com.example.sppbluetoothtest.app.MyApplication;
 import com.example.sppbluetoothtest.library.BluetoothSPP;
 import com.example.sppbluetoothtest.library.BluetoothState;
+import com.example.sppbluetoothtest.serialization.DecoderRME60A;
+import com.example.sppbluetoothtest.serialization.DecoderRME60ABeen;
 import com.example.sppbluetoothtest.util.SerializeUtil;
 import com.example.sppbluetoothtest.util.ToastUtil;
 
@@ -38,6 +42,7 @@ public class BlueActivity extends AppCompatActivity {
     boolean stopAuto;//退出后连接断开的标志
     boolean stopRealInfoGet;//连接时暂停数据获取
     TextView text, state, infoCountdown, infoError, maxTime, successTotal;
+    Button startTest;
     boolean print_mode = false;
     Handler handler = new Handler();
     int nFail = 1;
@@ -63,6 +68,7 @@ public class BlueActivity extends AppCompatActivity {
         infoError = findViewById(R.id.infoError);
         maxTime = findViewById(R.id.maxTime);
         successTotal = findViewById(R.id.successTotal);
+        startTest = findViewById(R.id.startTest);
         myApplication = (MyApplication) getApplication();
         InitScannerNewLoad();
         InitScannerCanNFC();
@@ -83,6 +89,10 @@ public class BlueActivity extends AppCompatActivity {
 
         macList.add("20:19:08:20:17:57");
         macList.add("20:19:08:20:29:87");
+//        macList.add("A0:14:F2:99:01:4E");//1
+//        macList.add("A0:14:F2:99:01:BD");//2
+//        macList.add("A0:14:F2:99:01:48");//3
+//        macList.add("A0:14:F2:99:01:4B");//4
         if (!bt.isBluetoothEnabled()) {
             Intent intent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(intent, BluetoothState.REQUEST_ENABLE_BT);
@@ -93,6 +103,22 @@ public class BlueActivity extends AppCompatActivity {
             }
         }
 
+        initLinstener();
+
+    }
+
+    private void initLinstener() {
+        startTest.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (timer == null) {
+                    startTimer();
+                    ToastUtil.showLong("开启测试");
+                } else {
+                    ToastUtil.showLong("已经处于测试状态");
+                }
+            }
+        });
     }
 
     private void InitScannerNewLoad() {
@@ -175,9 +201,9 @@ public class BlueActivity extends AppCompatActivity {
             timerTask = new TimerTask() {
                 @Override
                 public void run() {
-//                    handler.post(new Runnable() {
-//                        @Override
-//                        public void run() {
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
 //                            if (index == 0) {
 //                                bindMac = macList.get(0);
 //                                index = 1;
@@ -186,8 +212,8 @@ public class BlueActivity extends AppCompatActivity {
 //                                index = 0;
 //                            }
 //                            connectWithScan();
-//                        }
-//                    });
+                        }
+                    });
                 }
             };
             timer.schedule(timerTask, allTime * 1000, allTime * 1000);
@@ -205,7 +231,8 @@ public class BlueActivity extends AppCompatActivity {
                         if (print_mode) {
                             ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("024103"));
                         } else {
-                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("AA550403BB66"));
+//                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("AA550403BB66"));
+                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("A5A50AB6B6"));
                         }
                         if (ret == false) {
                             Log.e("LoginAct", "发送失败");
@@ -275,6 +302,8 @@ public class BlueActivity extends AppCompatActivity {
                     Log.e("LoginAct", "onDataReceived" + SerializeUtil.byteArrayToHexString(data));
                     if (!stopRealInfoGet) {
                         state.setText("收集信息:\n" + SerializeUtil.byteArrayToHexString(data));
+
+//                        decoderBlueToothData(SerializeUtil.byteArrayToHexString(data));
                     }
 //                    lister.onBlueReadTimeCode(data);//蓝牙连接后的实时信息发送
                 }
@@ -360,6 +389,15 @@ public class BlueActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private void decoderBlueToothData(String data) {
+        DecoderRME60ABeen decoder = DecoderRME60A.decoder(data);
+        state.setText("清理重量：" + decoder.getWeightUnitStr()
+                + "实时重量：" + decoder.getWeightRealUnitStr()
+                + "重量系数：" + decoder.getWeightRatio()
+                + "电压：" + decoder.getVoltage()
+                + "温度：" + decoder.getTemperature());
     }
 
     /**
