@@ -399,6 +399,7 @@ public class BluetoothService {
             while (true) {
                 try {
                     int data = mmInStream.read();
+                    Log.e("data====:", Integer.toString(data, 16));
                     if (print_mode) {//打印版的称
                         if (data == 0x28) {//协议5：28 6B 67 29 表示的字符是（kg），02开头，03结尾啊， 47 57 3A 表示的字符是GW：
                             if (arr_byte.size() > 0) {
@@ -415,16 +416,15 @@ public class BluetoothService {
                             arr_byte.add(data);
                         }
                     } else {//自己制造的称
-                        if (data == 0x66) {
+                        if (data == 0x6b) {
                             if (arr_byte.size() > 0) {
-                                if (arr_byte.get(arr_byte.size() - 1) == 0xbb) {
+                                if (arr_byte.get(arr_byte.size() - 1) == 0xb6) {
                                     buffer = new byte[arr_byte.size() - 1];
                                     for (int i = 0; i < arr_byte.size() - 1; i++) { //remove 0x66
                                         buffer[i] = arr_byte.get(i).byteValue();
                                     }
                                     // Send the obtained bytes to the UI Activity
-                                    mHandler.obtainMessage(BluetoothState.MESSAGE_READ
-                                            , buffer.length, -1, buffer).sendToTarget();
+                                    mHandler.obtainMessage(BluetoothState.MESSAGE_READ, buffer).sendToTarget();
                                     arr_byte = new ArrayList<Integer>();
                                 }
                             }

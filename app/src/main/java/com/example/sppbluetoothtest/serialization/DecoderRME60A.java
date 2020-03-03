@@ -1,5 +1,7 @@
 package com.example.sppbluetoothtest.serialization;
 
+import android.util.Log;
+
 import java.text.DecimalFormat;
 
 /**
@@ -42,10 +44,10 @@ public class DecoderRME60A {
             e.printStackTrace();
         }
 
-        //电压（除以10）
+        //电压（除以10）   7.1~7.4V中等   小于7.1V不足    大于7.4V充足
         try {
             df = new DecimalFormat("0.0");
-            int voltage = (int) Long.parseLong(decoderdata.substring(26, 30), 16) / 10;
+            float voltage = (float) Long.parseLong(decoderdata.substring(26, 30), 16) / 10;
             decoder.setVoltage(df.format(voltage));
         } catch (Exception e) {
             decoder.setVoltage("-1");
@@ -54,9 +56,10 @@ public class DecoderRME60A {
 
         //温度(要除以10)
         try {
-            df = new DecimalFormat("0.0");
-            int temp = (int) Long.parseLong(decoderdata.substring(30, 34), 16) / 10;
-            decoder.setTemperature(df.format(temp));
+            Log.e("charrrrrr", decoderdata.substring(30, 34));
+            //因为温度字段是二个字节需要用short在使用int才可以 为负数的时候需要注意  https://blog.csdn.net/qq_38998213/article/details/93216039
+            float temp = (short) Integer.parseInt(decoderdata.substring(30, 34), 16);
+            decoder.setTemperature(String.valueOf(temp/10));
         } catch (Exception e) {
             decoder.setTemperature("0");
             e.printStackTrace();

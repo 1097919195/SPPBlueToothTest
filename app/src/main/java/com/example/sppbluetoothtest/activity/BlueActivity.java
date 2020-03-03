@@ -42,7 +42,7 @@ public class BlueActivity extends AppCompatActivity {
     boolean stopAuto;//退出后连接断开的标志
     boolean stopRealInfoGet;//连接时暂停数据获取
     TextView text, state, infoCountdown, infoError, maxTime, successTotal;
-    Button startTest;
+    Button startTest, openLock, closeBle, clearZero;
     boolean print_mode = false;
     Handler handler = new Handler();
     int nFail = 1;
@@ -69,6 +69,9 @@ public class BlueActivity extends AppCompatActivity {
         maxTime = findViewById(R.id.maxTime);
         successTotal = findViewById(R.id.successTotal);
         startTest = findViewById(R.id.startTest);
+        openLock = findViewById(R.id.openLock);
+        closeBle = findViewById(R.id.closeBle);
+        clearZero = findViewById(R.id.clearZero);
         myApplication = (MyApplication) getApplication();
         InitScannerNewLoad();
         InitScannerCanNFC();
@@ -116,6 +119,42 @@ public class BlueActivity extends AppCompatActivity {
                     ToastUtil.showLong("开启测试");
                 } else {
                     ToastUtil.showLong("已经处于测试状态");
+                }
+            }
+        });
+
+        openLock.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
+                    //开锁
+                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B010000000000000000000BB66B"));
+                } else {
+                    ToastUtil.showLong("请先连接蓝牙");
+                }
+            }
+        });
+
+        closeBle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
+                    //关闭蓝牙
+                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000001000000000000000BB66B"));
+                } else {
+                    ToastUtil.showLong("请先连接蓝牙");
+                }
+            }
+        });
+
+        clearZero.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
+                    //关闭蓝牙
+                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000100000000000000000BB66B"));
+                } else {
+                    ToastUtil.showLong("请先连接蓝牙");
                 }
             }
         });
@@ -232,7 +271,7 @@ public class BlueActivity extends AppCompatActivity {
                             ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("024103"));
                         } else {
 //                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("AA550403BB66"));
-                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("A5A50AB6B6"));
+                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0A09B66B"));//校验码超过256的话需要减去256再转16进制
                         }
                         if (ret == false) {
                             Log.e("LoginAct", "发送失败");
@@ -246,7 +285,7 @@ public class BlueActivity extends AppCompatActivity {
                     }
                 }
             };
-            sendrealtimemessagetimer.schedule(sendrealtimemessagetimertimerTask, 500, 250);
+            sendrealtimemessagetimer.schedule(sendrealtimemessagetimertimerTask, 250, 500);
         }
     }
 
@@ -299,11 +338,13 @@ public class BlueActivity extends AppCompatActivity {
         bt.setOnDataReceivedListener(new BluetoothSPP.OnDataReceivedListener() {
             public void onDataReceived(byte[] data, String message) {
                 synchronized (readLockObject) {
-                    Log.e("LoginAct", "onDataReceived" + SerializeUtil.byteArrayToHexString(data));
+                    String dataHex = SerializeUtil.byteArrayToHexString(data);
+                    Log.e("LoginAct", "onDataReceived" + dataHex);
                     if (!stopRealInfoGet) {
-                        state.setText("收集信息:\n" + SerializeUtil.byteArrayToHexString(data));
-
-//                        decoderBlueToothData(SerializeUtil.byteArrayToHexString(data));
+                        if (dataHex.length() != 10) {//比实际少4个长度，应为已经在之前去掉了帧尾
+//                            state.setText("收集信息:\n" + dataHex);
+                            decoderBlueToothData(dataHex);
+                        }
                     }
 //                    lister.onBlueReadTimeCode(data);//蓝牙连接后的实时信息发送
                 }
