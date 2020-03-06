@@ -1,7 +1,6 @@
 package com.example.sppbluetoothtest.messagequeue;
 
 import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
 
 import com.example.sppbluetoothtest.library.BluetoothSPP;
@@ -56,7 +55,6 @@ public class PushBlockQueueHandler implements Runnable {
 
             //蓝牙的
             BluetoothSendData(SerializeUtil.hexStringToByteArray(obj.toString()));
-//            Thread.sleep(500);//发完等待一下，直接读取可能会存在内存中
             obj = null;
         } catch (Exception e) {
             e.printStackTrace();
@@ -67,12 +65,10 @@ public class PushBlockQueueHandler implements Runnable {
         if (serialPort != null && serialPort.getServiceState() == BluetoothState.STATE_CONNECTED) {
             synchronized (sendLockObject) {
                 serialPort.send(data, false);
-                if (data.length > 100) {//保证cpu的工作
-                    try {
-                        sleep(data.length);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                try {
+                    sleep(100);//保证cpu的工作 发完等待一下
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
             return true;

@@ -4,8 +4,6 @@ package com.example.sppbluetoothtest.messagequeue;
  * Created by Administrator on 2019/9/9.
  */
 
-import android.util.Log;
-
 import java.util.LinkedList;
 
 /**
@@ -16,7 +14,6 @@ public class MyStack<T> {
 
     public synchronized void push(T e) {//需要加上同步
         storage.addFirst(e);
-        Log.e("asdf1", String.valueOf(size()));
     }
 
     public T peek() {
@@ -44,11 +41,14 @@ public class MyStack<T> {
         return storage.isEmpty();
     }
 
+    public void clearData() {
+        storage.clear();
+    }
+
     public void addMsg(T obj) {
         if (storage.size() < 20) {
             storage.add(obj);
         }
-        Log.e("asdf2", String.valueOf(size()));
     }
 
     public int size() {

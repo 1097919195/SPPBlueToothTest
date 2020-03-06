@@ -11,6 +11,7 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -22,6 +23,7 @@ import com.example.sppbluetoothtest.library.BluetoothState;
 import com.example.sppbluetoothtest.messagequeue.PushBlockQueue;
 import com.example.sppbluetoothtest.serialization.DecoderRME60A;
 import com.example.sppbluetoothtest.serialization.DecoderRME60ABeen;
+import com.example.sppbluetoothtest.util.SPUtils;
 import com.example.sppbluetoothtest.util.SerializeUtil;
 import com.example.sppbluetoothtest.util.ToastUtil;
 
@@ -44,7 +46,8 @@ public class BlueActivity extends AppCompatActivity {
     boolean stopAuto;//退出后连接断开的标志
     boolean stopRealInfoGet;//连接时暂停数据获取
     TextView text, state, infoCountdown, infoError, maxTime, successTotal;
-    Button startTest, openLock, closeBle, clearZero;
+    Button startTest, openLock, closeBle, clearZero, sendRealData, periodOK;
+    EditText sendPeriod;
     boolean print_mode = false;
     Handler handler = new Handler();
     int nFail = 1;
@@ -58,6 +61,7 @@ public class BlueActivity extends AppCompatActivity {
     int successWith2_4 = 0;
     int successWith4_6 = 0;
     int successWith6_10 = 0;
+    int realTimePeriod = SPUtils.getSharedIntData(MyApplication.getInstance(), "realTimePeriod");
 
     Handler baseHandler = new Handler();
 
@@ -76,6 +80,9 @@ public class BlueActivity extends AppCompatActivity {
         openLock = findViewById(R.id.openLock);
         closeBle = findViewById(R.id.closeBle);
         clearZero = findViewById(R.id.clearZero);
+        sendRealData = findViewById(R.id.sendRealData);
+        sendPeriod = findViewById(R.id.sendPeriod);
+        periodOK = findViewById(R.id.periodOK);
         myApplication = (MyApplication) getApplication();
         InitScannerNewLoad();
         InitScannerCanNFC();
@@ -128,18 +135,18 @@ public class BlueActivity extends AppCompatActivity {
         startTest.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                if (bt.getServiceState() != BluetoothState.STATE_CONNECTED) {
-//                    bt.connect("79:77:16:20:23:18");
-//                } else {
-//                    ToastUtil.showLong("已经处于测试状态");
-//                }
-
-                if (timer == null) {
-                    startTimer();
-                    ToastUtil.showLong("开启测试");
+                if (bt.getServiceState() != BluetoothState.STATE_CONNECTED) {
+                    bt.connect("79:77:16:20:23:18");
                 } else {
                     ToastUtil.showLong("已经处于测试状态");
                 }
+
+//                if (timer == null) {
+//                    startTimer();
+//                    ToastUtil.showLong("开启测试");
+//                } else {
+//                    ToastUtil.showLong("已经处于测试状态");
+//                }
             }
         });
 
@@ -149,6 +156,8 @@ public class BlueActivity extends AppCompatActivity {
                 if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
                     //开锁
 //                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B010000000000000000000BB66B"));
+                    stack.clearData();
+                    Log.e("数量3", String.valueOf(stack.size()));
                     stack.push("A55A0B010000000000000000000BB66B");
                 } else {
                     ToastUtil.showLong("请先连接蓝牙");
@@ -162,6 +171,8 @@ public class BlueActivity extends AppCompatActivity {
                 if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
                     //关闭蓝牙
 //                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000001000000000000000BB66B"));
+                    stack.clearData();
+                    Log.e("数量3", String.valueOf(stack.size()));
                     stack.push("A55A0B000001000000000000000BB66B");
                 } else {
                     ToastUtil.showLong("请先连接蓝牙");
@@ -175,9 +186,41 @@ public class BlueActivity extends AppCompatActivity {
                 if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
                     //置零
 //                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000100000000000000000BB66B"));
+                    stack.clearData();
+                    Log.e("数量3", String.valueOf(stack.size()));
                     stack.push("A55A0B000100000000000000000BB66B");
                 } else {
                     ToastUtil.showLong("请先连接蓝牙");
+                }
+            }
+        });
+
+        sendRealData.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
+                    //单条实时包
+//                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000100000000000000000BB66B"));
+                    stack.clearData();
+                    Log.e("数量3", String.valueOf(stack.size()));
+                    stack.addMsg("A55A0A09B66B");
+//                    stack.addMsg("AA550403BB66");
+                } else {
+                    ToastUtil.showLong("请先连接蓝牙");
+                }
+            }
+        });
+
+        periodOK.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String str = sendPeriod.getEditableText().toString();
+                try {
+                    realTimePeriod = Integer.parseInt(str);
+                    ToastUtil.showShort("实时包通讯间隔已更改,请重启生效");
+                    SPUtils.setSharedIntData(MyApplication.getInstance(), "realTimePeriod", realTimePeriod);
+                } catch (Exception e) {
+                    ToastUtil.showShort("请输入整数");
                 }
             }
         });
@@ -256,6 +299,9 @@ public class BlueActivity extends AppCompatActivity {
     TimerTask sendrealtimemessagetimertimerTask = null;
 
     private void startTimer() {
+        if (realTimePeriod == 0) {
+            realTimePeriod = 500;
+        }
         if (timer == null) {
             timer = new Timer();
         }
@@ -289,9 +335,9 @@ public class BlueActivity extends AppCompatActivity {
                 @Override
                 public void run() {
                     Log.e("数量1：", String.valueOf(stack.size()));
-                    if (stack.size() == 0) {
-//                        stack.addMsg("A55A0A09B66B");
-                        stack.addMsg("AA550403BB66");
+                    if (stack.empty()) {
+                        stack.addMsg("A55A0A09B66B");
+//                        stack.addMsg("AA550403BB66");
                         Log.e("数量2：", String.valueOf(stack.size()));
                     }
 //                    if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
@@ -314,7 +360,7 @@ public class BlueActivity extends AppCompatActivity {
 //                    }
                 }
             };
-            sendrealtimemessagetimer.schedule(sendrealtimemessagetimertimerTask, 250, 250);
+            sendrealtimemessagetimer.schedule(sendrealtimemessagetimertimerTask, realTimePeriod, realTimePeriod);
         }
     }
 
