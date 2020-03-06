@@ -19,6 +19,7 @@ import com.example.sppbluetoothtest.R;
 import com.example.sppbluetoothtest.app.MyApplication;
 import com.example.sppbluetoothtest.library.BluetoothSPP;
 import com.example.sppbluetoothtest.library.BluetoothState;
+import com.example.sppbluetoothtest.messagequeue.PushBlockQueue;
 import com.example.sppbluetoothtest.serialization.DecoderRME60A;
 import com.example.sppbluetoothtest.serialization.DecoderRME60ABeen;
 import com.example.sppbluetoothtest.util.SerializeUtil;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import static com.example.sppbluetoothtest.messagequeue.PushBlockQueue.stack;
 import static java.lang.Thread.sleep;
 
 public class BlueActivity extends AppCompatActivity {
@@ -56,6 +58,8 @@ public class BlueActivity extends AppCompatActivity {
     int successWith2_4 = 0;
     int successWith4_6 = 0;
     int successWith6_10 = 0;
+
+    Handler baseHandler = new Handler();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -107,13 +111,29 @@ public class BlueActivity extends AppCompatActivity {
         }
 
         initLinstener();
+        startPushBlockQueue();
+    }
 
+    private void startPushBlockQueue() {
+        if (bt != null) {
+            Log.e("队列", "消息队列开启中...");
+            PushBlockQueue.getInstance().start(bt, baseHandler);
+            Log.e("队列", "等待队列进入");
+        } else {
+            Log.e("队列", "队列开启失败");
+        }
     }
 
     private void initLinstener() {
         startTest.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+//                if (bt.getServiceState() != BluetoothState.STATE_CONNECTED) {
+//                    bt.connect("79:77:16:20:23:18");
+//                } else {
+//                    ToastUtil.showLong("已经处于测试状态");
+//                }
+
                 if (timer == null) {
                     startTimer();
                     ToastUtil.showLong("开启测试");
@@ -128,7 +148,8 @@ public class BlueActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
                     //开锁
-                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B010000000000000000000BB66B"));
+//                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B010000000000000000000BB66B"));
+                    stack.push("A55A0B010000000000000000000BB66B");
                 } else {
                     ToastUtil.showLong("请先连接蓝牙");
                 }
@@ -140,7 +161,8 @@ public class BlueActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
                     //关闭蓝牙
-                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000001000000000000000BB66B"));
+//                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000001000000000000000BB66B"));
+                    stack.push("A55A0B000001000000000000000BB66B");
                 } else {
                     ToastUtil.showLong("请先连接蓝牙");
                 }
@@ -151,8 +173,9 @@ public class BlueActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
-                    //关闭蓝牙
-                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000100000000000000000BB66B"));
+                    //置零
+//                    BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0B000100000000000000000BB66B"));
+                    stack.push("A55A0B000100000000000000000BB66B");
                 } else {
                     ToastUtil.showLong("请先连接蓝牙");
                 }
@@ -265,27 +288,33 @@ public class BlueActivity extends AppCompatActivity {
             sendrealtimemessagetimertimerTask = new TimerTask() {
                 @Override
                 public void run() {
-                    if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
-                        boolean ret;
-                        if (print_mode) {
-                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("024103"));
-                        } else {
-//                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("AA550403BB66"));
-                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0A09B66B"));//校验码超过256的话需要减去256再转16进制
-                        }
-                        if (ret == false) {
-                            Log.e("LoginAct", "发送失败");
-//                            lister.onBlueReadTimeCode(new byte[]{(byte) 0xaa, 0x55, 0x04, 0x00, 0x00, 0x00});
-                        } else {
-//                            Log.e("LoginAct", "发送成功" + String.valueOf(suc++));
-                        }
-                    } else {
-//                        lister.onBlueReadTimeCode(new byte[]{(byte) 0xaa, 0x55, 0x04, 0x00, 0x00, 0x00});
-                        Log.e("LoginAct", "断开了");
+                    Log.e("数量1：", String.valueOf(stack.size()));
+                    if (stack.size() == 0) {
+//                        stack.addMsg("A55A0A09B66B");
+                        stack.addMsg("AA550403BB66");
+                        Log.e("数量2：", String.valueOf(stack.size()));
                     }
+//                    if (bt != null && bt.getServiceState() == BluetoothState.STATE_CONNECTED) {
+//                        boolean ret;
+//                        if (print_mode) {
+//                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("024103"));
+//                        } else {
+////                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("AA550403BB66"));
+//                            ret = BluetoothSendData(SerializeUtil.hexStringToByteArray("A55A0A09B66B"));//校验码超过256的话需要减去256再转16进制
+//                        }
+//                        if (ret == false) {
+//                            Log.e("LoginAct", "发送失败");
+////                            lister.onBlueReadTimeCode(new byte[]{(byte) 0xaa, 0x55, 0x04, 0x00, 0x00, 0x00});
+//                        } else {
+////                            Log.e("LoginAct", "发送成功" + String.valueOf(suc++));
+//                        }
+//                    } else {
+////                        lister.onBlueReadTimeCode(new byte[]{(byte) 0xaa, 0x55, 0x04, 0x00, 0x00, 0x00});
+//                        Log.e("LoginAct", "断开了");
+//                    }
                 }
             };
-            sendrealtimemessagetimer.schedule(sendrealtimemessagetimertimerTask, 250, 500);
+            sendrealtimemessagetimer.schedule(sendrealtimemessagetimertimerTask, 250, 250);
         }
     }
 
@@ -464,6 +493,7 @@ public class BlueActivity extends AppCompatActivity {
         super.onDestroy();
         unregisterReceiver(mNewLoadReceiver);
         unregisterReceiver(mCanNFCReceiver);
+        PushBlockQueue.getInstance().stop();
         stopTimer();
         if (countDownTimer != null) {
             countDownTimer.cancel();
